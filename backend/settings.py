@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-2gu6i7#l33j--%fs=38yo$4gaq^8lo-5fd(j*g#u2(9gzx&whe
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "bet_app",
-    "mpesa",
 ]
 
 MIDDLEWARE = [
@@ -126,12 +125,6 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media_cdn")
 
 
-# MPESA_CONFIG = {
-# … ‘CONSUMER_KEY’: ‘<Your consumer key from daraja>’, ‘CONSUMER_SECRET’: ‘<Your consumer secret from daraja>’, ‘HOST_NAME’: ‘<Your hostname e.g https://myhostname>’, ‘PASS_KEY’: ‘<Your pass key from daraja>’, ‘SAFARICOM_API’: ‘https://sandbox.safaricom.co.ke’, ‘SHORT_CODE’: ‘174379’
-
-# }
-
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
@@ -141,3 +134,54 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# MPESA Configuration variables
+
+MPESA_CONSUMER_KEY    = 'eHgUVx1FKTuMW6nBHNASuOimnehlKGbt'
+MPESA_CONSUMER_SECRET = 'FgQAZCAVU8IWcmCC'
+
+#Shortcode to use for transactions. For sandbox  use the Shortcode 1 provided on test credentials page
+MPESA_SHORT_CODE  = '174379' # 382777
+MPESA_B2C_PARTY_A = '600977' # 382777
+
+MPESA_SHORTCODE_TYPE = 'CustomerPayBillOnline'
+
+MPESA_TOKEN_URL            = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+MPESA_DEPOSITE_URL         = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+MPESA_DEPOSITE_RESULT_URL  = "https://mezizbet.com/api/user/deposit/result/"
+MPESA_WITHDRAW_URL         = "https://sandbox.safaricom.co.ke/mpesa/b2c/v3/paymentrequest"
+MPESA_WITHDRAW_RESULT_URL  = "https://mezizbet.com/api/user/withdraw/result/"
+MPESA_WITHDRAW_TIMEOUT_URL = "https://mezizbet.com/api/user/withdraw/timeout/"
+                
+MPESA_PASSKEY              = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
+MPESA_SECURITY_CREDENTIAL  = "Nht8YWLyBNhSIUPx0yR6eSjgAwhBLnl3ULU+Lowu/ibzqsfVZCZZ1+7YDPSpTsdMlIUegrm1nRhS0B5ZyoLW525ZPWs4E8DLtLtjvMgYy5MnFEdr2VJk8z90akHI59rIIkB2EewwymJ8w4MPQvfpPWx4hgPbM4MDjDY7gW66Se9qh/5Ih8DjqnR+mrpmN/lvQ3NHhYoItYfgeMduaubnz1RVz3e2GOQxLUxinTTih9Nt/J2BgRRy6OWIzpqMtRVQC12M3TWZ1mXYB1chZtU0uYF6bYthdDIGerGA4xt7D7JDW0ZrVpUOWT7+tnLZrWxOKYwdWhmBcS37FPu9qIvRQQ=="
+
+# Username for initiator (to be used in B2C, B2B, AccountBalance and TransactionStatusQuery Transactions)
+MPESA_INITIATOR_USERNAME = 'testapi'
+
+# Plaintext password for initiator (to be used in B2C, B2B, AccountBalance and TransactionStatusQuery Transactions)
+MPESA_INITIATOR_SECURITY_CREDENTIAL = 'Safaricom999!*!' 
+
+
+
+

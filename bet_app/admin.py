@@ -1,6 +1,5 @@
 # Register your models here.
 from django.contrib import admin
-from .models import Bet, Transaction
+from .models import *
 
-admin.site.register(Bet)
 admin.site.register(Transaction)

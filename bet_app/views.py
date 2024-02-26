@@ -1,15 +1,25 @@
-# This is a placeholder for the actual Mpesa API integration
-# from mpesa_api import MpesaAPI
-from .models import Bet, Transaction
-from django.http import JsonResponse
 from django.shortcuts import render
-from django.views import View
-from .models import *
-from django.contrib import messages
+from .serializers import *   
+from .models import * 
+from rest_framework import status
+from rest_framework.response import  Response
+from rest_framework.decorators import api_view
+from django.conf import settings
 
-from django.http import HttpResponse
+from decimal import Decimal
 
-# Create your views here.
+import requests
+from requests.auth import HTTPBasicAuth
+import json
+from .utils import *
+
+
+
+
+
+
+
+
 
 
 # Home view
@@ -19,66 +29,194 @@ def home(request):
     return render(request, "home.html")
 
 
-# To place a Bet
+
+# =========================================================
+#                     USER DEPOSIT
+# =========================================================
+@api_view(['POST'])
+def Deposit(request):
+    if request.method == 'POST':
+        serializer = DepositeSerializer(data=request.data)
+        if serializer.is_valid():
+            amount  = 1 # Decimal(serializer.data.get("amount"))
+            phone   = str(request.user.phone_number)
+            phone_number  = str(country+phone)[1:]
+            query_payload = {
+                "BusinessShortCode": settings.MPESA_SHORT_CODE,    
+                "Password": mpesa_password(),    
+                "Timestamp": mpesa_timestamp(),    
+                "TransactionType": settings.MPESA_SHORTCODE_TYPE,    
+                "Amount": int(amount),    
+                "PartyA": phone_number,    
+                "PartyB": settings.MPESA_SHORT_CODE,    
+                "PhoneNumber": phone_number,    
+                "CallBackURL": settings.MPESA_DEPOSITE_RESULT_URL,    
+                "AccountReference":"Test",    
+                "TransactionDesc":"Test"
+            }
+            query_headers = {'Authorization': 'Bearer ' + get_mpesa_token(), 'Content-Type': 'application/json'}
+            response = requests.post(settings.MPESA_DEPOSITE_URL, json=query_payload, headers=query_headers)
+            return HttpResponse(response.text)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-def place_bet(request):
-    if request.method == "POST":
-        phone_number = request.POST.get("phone_number")
-        reference = request.POST.get("reference")
-        amount = request.POST.get("amount")
-        bet = Bet.objects.create(
-            phone_number=phone_number, reference=reference, amount=amount
-        )
-        return JsonResponse({"message": "Bet placed successfully", "bet_id": bet.id})
-    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
-# For deposit of the User
-def deposit(request):
-    if request.method == "POST":
-        bet_id = request.POST.get("bet_id")
-        amount = request.POST.get("amount")
-        try:
-            bet = Bet.objects.get(id=bet_id)
-        except Bet.DoesNotExist:
-            return JsonResponse({"error": "Bet not found"}, status=404)
 
-        # Here you would integrate with the Mpesa API to make a deposit
-        mpesa_api = MpesaAPI()
-        response = mpesa_api.deposit(bet.phone_number, amount)
 
-        if response["success"]:
+
+
+
+
+
+
+# =========================================================
+#                  USER DEPOSIT RESULT
+# =========================================================
+@api_view(['POST'])
+def DepositResult(request):
+    if request.method == 'POST':
+        data = request.data
+        ResultCode = data['Body']['stkCallback']['ResultCode']
+        if ResultCode == 0:
+            amount              = 1000 # data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
+            reference           = data['Body']['stkCallback']['CallbackMetadata']['Item'][1]['Value']
+            phone               = data['Body']['stkCallback']['CallbackMetadata']['Item'][4]['Value']
+            merchant_request_id = data['Body']['stkCallback']['MerchantRequestID']
+            checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+            result_code         = data['Body']['stkCallback']['ResultCode']
+            phone_number = int(str(phone)[3:])
+
             Transaction.objects.create(
-                bet=bet, transaction_type="deposit", amount=amount
+                phone_number                = phone_number,
+                transaction_type    = "deposit",
+                payment_method      = "MPESA",
+                reference           = reference,
+                result_code         = result_code,
+                merchant_request_id = merchant_request_id,
+                checkout_request_id = checkout_request_id,
+                amount              = amount
             )
-            return JsonResponse({"message": "Deposit successful"})
+            message = data['Body']['stkCallback']['ResultDesc']
+            return Response(message, status=status.HTTP_200_OK)
         else:
-            return JsonResponse({"error": "Deposit failed"}, status=400)
+            message = data['Body']['stkCallback']['ResultDesc']
+            return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
-# Help User to withdraw his money
-def withdraw(request):
-    if request.method == "POST":
-        bet_id = request.POST.get("bet_id")
-        amount = request.POST.get("amount")
-        try:
-            bet = Bet.objects.get(id=bet_id)
-        except Bet.DoesNotExist:
-            return JsonResponse({"error": "Bet not found"}, status=404)
 
-        # Here you would integrate with the Mpesa API to make a withdrawal
-        mpesa_api = MpesaAPI()
-        response = mpesa_api.withdraw(bet.phone_number, amount)
 
-        if response["success"]:
+
+
+
+
+# =========================================================
+#                     MPESA WITHDRAW
+# =========================================================
+@api_view(['POST'])
+def Withdraw(request):
+    if request.method == 'POST':
+        serializer = WithdrawSerializer(data=request.data)
+        if serializer.is_valid():
+            amount  = Decimal(serializer.data.get("amount"))
+            phone   = str(request.user.phone_number)
+            phone_number  = 254708374149 # str(country+phone)[1:]
+            if amount < 50:
+                message = {"Minimum amount per request is 50.00 KES."}
+                return Response(message, status=status.HTTP_400_BAD_REQUEST)
+            elif amount > request.user.balance:
+                message = {"Amount must be less than balance."}
+                return Response(message, status=status.HTTP_400_BAD_REQUEST)
+            query_payload = {
+                "OriginatorConversationID": random_string(36),
+                "InitiatorName": settings.MPESA_INITIATOR_USERNAME,
+                "SecurityCredential": settings.MPESA_SECURITY_CREDENTIAL,
+                "CommandID": "BusinessPayment",
+                "Amount": int(amount),
+                "PartyA": settings.MPESA_B2C_PARTY_A,
+                "PartyB": phone_number,
+                "Remarks": "Test remarks",
+                "QueueTimeOutURL": "https://04da-41-90-187-151.ngrok-free.app/api/user/withdraw/timeout/",
+                "ResultURL": "https://04da-41-90-187-151.ngrok-free.app/api/user/withdraw/result/",
+                "Occasion": "Christmas",
+            }
+            query_headers = {'Authorization': 'Bearer ' + get_mpesa_token(), 'Content-Type': 'application/json'}
+            response = requests.post(settings.MPESA_WITHDRAW_URL, json=query_payload, headers=query_headers)
+            return HttpResponse(response.text)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+# =========================================================
+#                  MPESA WITHDRAW RESULT
+# =========================================================
+@api_view(['POST'])
+def WithdrawResult(request):
+    if request.method == 'POST':
+        data = request.data
+        ResultCode = data['Result']['ResultCode']
+        if ResultCode   == 0:
+            result_code         = data['Result']['ResultCode']
+            ori_conversation_id = data['Result']['OriginatorConversationID']
+            conversation_id     = data['Result']['ConversationID']
+            amount              = data['Result']['ResultParameters']['ResultParameter'][0]['Value']
+            reference           = data['Result']['ResultParameters']['ResultParameter'][1]['Value']
+            phone               = data['Result']['ResultParameters']['ResultParameter'][2]['Value'][0:12]
+            phone_number        = 711898366 # int(str(phone)[3:])
+
             Transaction.objects.create(
-                bet=bet, transaction_type="withdraw", amount=amount
+                phone_number        = phone_number,
+                transaction_type    = "withdraw",
+                payment_method      = "MPESA",
+                reference           = reference,
+                result_code         = result_code,
+                ori_conversation_id = ori_conversation_id,
+                conversation_id     = conversation_id,
+                amount              = amount
             )
-            return JsonResponse({"message": "Withdrawal successful"})
+            message = data['Result']['ResultDesc']
+            return Response(message, status=status.HTTP_200_OK)
         else:
-            return JsonResponse({"error": "Withdrawal failed"}, status=400)
+            message = data['Result']['ResultDesc']
+            return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =========================================================
+#                MPESA WITHDRAW TIME OUT
+# =========================================================
+@api_view(['POST'])
+def WithdrawTimeOut(request):
+    if request.method == 'POST':
+        data    = request.data
+        message = {"Time out."}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+

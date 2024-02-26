@@ -1,10 +1,11 @@
 from django.urls import path
-from . import views
+from .views import *
 
 urlpatterns = [
-    path('', views.home, name='home'),
-
-    path('place_bet/', views.place_bet, name='place_bet'),
-    path('deposit/', views.deposit, name='deposit'),
-    path('withdraw/', views.withdraw, name='withdraw'),
+    path('', home, name='home'),
+    path('deposit/', Deposit, name='deposit'),
+    path('deposit/result/', DepositResult, name="deposit_result"),
+    path('withdraw/', Withdraw, name='withdraw'),
+    path('withdraw/result/', WithdrawResult, name="withdraw_result"),
+    path('withdraw/timeout/', WithdrawTimeOut, name="withdraw_timeout"),
 ]
